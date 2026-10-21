@@ -1,0 +1,96 @@
+i want to have one file that will have all the Phases
+include checkpoints
+make sure that it runs on the gpu of my lab, my gpu, and the gpu of colab. 
+check gpu first, and then cuda. 
+make the python file such that it can be interpreted as a notebook as well. incude cells and markdowsn in it 
+here is a sample of what it could look like: earlier an agent gave me this answer
+
+
+Yes, one notebook can do both. The main things are detecting the environment, picking the device automatically, and using paths that work in both places. Put this at the top of your notebook:
+import os, sys, random, shutil, subprocess
+import numpy as np
+import torch
+
+# ---------- Environment & device ----------
+IN_COLAB = 'google.colab' in sys.modules
+DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+USE_AMP = DEVICE.type == 'cuda'          # mixed precision only on GPU
+print(f"Colab: {IN_COLAB} | Device: {DEVICE}")
+
+# ---------- Reproducibility ----------
+SEED = 42
+def set_seed(s=SEED):
+    random.seed(s); np.random.seed(s)
+    torch.manual_seed(s); torch.cuda.manual_seed_all(s)
+set_seed()
+
+# ---------- Paths (Drive on Colab, local folder otherwise) ----------
+if IN_COLAB:
+    from google.colab import drive
+    drive.mount('/content/drive')
+    BASE = '/content/drive/MyDrive/dl_a2'
+else:
+    BASE = os.path.abspath('./dl_a2')
+DATA_DIR = f'{BASE}/data'
+CKPT_DIR = f'{BASE}/checkpoints'
+os.makedirs(DATA_DIR, exist_ok=True)
+os.makedirs(CKPT_DIR, exist_ok=True)
+
+# ---------- Device-dependent settings ----------
+QUICK_TEST = DEVICE.type == 'cpu'        # small subset on CPU for debugging
+BATCH_SIZE = 256 if DEVICE.type == 'cuda' else 64
+if DEVICE.type == 'cpu':
+    torch.set_num_threads(os.cpu_count())
+
+Automatic dataset download with kagglehub:
+try:
+    import kagglehub
+except ImportError:
+    subprocess.check_call([sys.executable, '-m', 'pip', 'install', '-q', 'kagglehub'])
+    import kagglehub
+
+DATASETS = {
+    'austen':      'joshmcadams/jane-austin-and-charles-dickens',
+    'shakespeare': 'thedevastator/the-bards-best-a-character-modeling-dataset',
+    'bbc':         'shivamkushwaha/bbc-full-text-document-classification',
+}
+
+def get_dataset(name):
+    target = os.path.join(DATA_DIR, name)
+    if os.path.isdir(target) and os.listdir(target):   # already downloaded
+        return target
+    path = kagglehub.dataset_download(DATASETS[name])
+    shutil.copytree(path, target, dirs_exist_ok=True)
+    return target
+
+paths = {k: get_dataset(k) for k in DATASETS}
+for k, p in paths.items():
+    print(k, '->', os.listdir(p))      # check the real file names before writing Phase 1
+
+Things to know:
+Kaggle credentials: If the download asks for them, create an API token in your Kaggle account settings. On Colab, store the username and key in Colab Secrets (the key icon in the sidebar) as KAGGLE_USERNAME and KAGGLE_KEY, then run:
+
+ if IN_COLAB:
+    from google.colab import userdata
+    os.environ['KAGGLE_USERNAME'] = userdata.get('KAGGLE_USERNAME')
+    os.environ['KAGGLE_KEY'] = userdata.get('KAGGLE_KEY')
+ Locally, put kaggle.json in ~/.kaggle/ or set the same two environment variables. Do this before calling get_dataset.
+
+
+Check file names after downloading. I can't see the contents of these datasets, so print the folder listing (as above) and adapt your loading code. The Austen set may have several columns or files, and the BBC set is organized in category folders with duplicate copies you need to remove.
+
+
+Skip re-downloading: The if check in get_dataset means reruns reuse the saved files, and on Colab they persist in your Drive.
+
+
+Keep the model code device-agnostic: Always use .to(DEVICE), and wrap the training step in torch.autocast(device_type=DEVICE.type, enabled=USE_AMP). Use GradScaler only when USE_AMP is true.
+
+
+Use QUICK_TEST for local debugging: When it is true, subsample your windows (for example, the first 20k) so the full notebook runs end to end in a couple of minutes. Then on Colab it automatically runs the full experiments. Since "non-runnable code = zero marks," running the whole notebook top to bottom on both machines before submitting is a good safety check.
+
+
+Mention both setups in README.txt: Say that the notebook runs on Colab (GPU) or locally, and list the Kaggle credential step.
+
+
+Do you want me to write the Phase 1 code next (cleaning, sentence split, vocab and windowing) in this same device-agnostic style?
+
