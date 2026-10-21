@@ -1,0 +1,8 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+dl_a2/data/
+dl_a2/checkpoints/
