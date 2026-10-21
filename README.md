@@ -25,13 +25,26 @@ A deep dive into sequential language modeling using RNNs and LSTMs, trained on c
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
+pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-**Kaggle credentials** (needed for automatic dataset download):
-- Go to kaggle.com → Account → Create New Token → download `kaggle.json`
-- Place it at `~/.kaggle/kaggle.json`
-- Or set environment variables: `KAGGLE_USERNAME` and `KAGGLE_KEY`
+**Kaggle credentials** (needed for dataset download):
+1. kaggle.com → profile → Settings → API → **Create New Token** → downloads `kaggle.json`
+2. Move it into place:
+```bash
+mkdir -p ~/.kaggle
+mv ~/Downloads/kaggle.json ~/.kaggle/
+chmod 600 ~/.kaggle/kaggle.json
+```
+
+**Download datasets:**
+```bash
+chmod +x download_data.sh
+./download_data.sh
+```
+
+This downloads and extracts all three corpora into `./data/`.
 
 ## Running
 
